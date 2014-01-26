@@ -1,146 +1,106 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include "deps.h"
 
-struct target_node {
+#define NAME_LEN 1024
+#define CMD_LEN 1024
+
+int __find_target_by_name(const char *name);
+const char* __find_name_by_target(int target);
+struct deps_list* __insert_list_entry(struct deps_list *here);
+void __remove_list_entry(struct deps_list *ent);
+struct deps_list* __find_target(struct deps_list *start, int target);
+void __remove_target(int target);
+void __print_target_commands(int target);
+struct deps_list* __list_tail();
+void __print_list();
+int __list_length();
+
+struct deps_list {
     int target;
     int dep;
-    char name[255];
-    struct target_node *next;
+    char cmd[CMD_LEN];
+    char name[NAME_LEN];
+    struct deps_list *next;
 };
 
-void initialize_list(struct target_node *list)
+int gl_nextId = 1;
+struct deps_list dl;
+
+int cdep_init() 
 {
-    memset(list, 0, sizeof(*list));
-    list->next = NULL;
+    memset(&dl, 0, sizeof(struct deps_list));
+    return 0;
 }
 
-void name_target(struct target_node *list, const char* name, int target)
+int cdep_add_target(const char* name)
 {
-    struct target_node *c = list;
-    while (c->next != NULL) { 
-        c = c->next;
-    }
+    struct deps_list *c;
 
-    c->next = malloc(sizeof(struct target_node));
-    memset(c->next, 0, sizeof(struct target_node));
-    strncpy(c->next->name, name, 255);
-    c->next->target = target;
-    c->next->dep = -1;
+    if (__find_target_by_name(name) > 0)
+        return -1;
+
+    c = __insert_list_entry(__list_tail());
+    c->target = gl_nextId++;
+    c->dep = 0;
+    strncpy(c->name, name, NAME_LEN);
+    return c->target;
 }
 
-const char* get_target_name(struct target_node *list, int target)
+int cdep_add_dependency(const char* name, const char *dep_name)
 {
-    struct target_node *c = list;
-    while (c != NULL) { 
-        if (c->target == target && c->name)
-            return c->name;
-        c = c->next;
-    }
-    return "";
+    int target, dep;
+    struct deps_list *c;
+
+    target = __find_target_by_name(name);
+    if (target == 0)
+        target = cdep_add_target(name);
+
+    dep = __find_target_by_name(dep_name);
+    if (dep == 0)
+        dep = cdep_add_target(dep_name);
+
+    c = __insert_list_entry(__list_tail());
+    c->target = target;
+    c->dep = dep;
+    return 0;
 }
 
-void define_dep(struct target_node *list, int target, int dep)
+int cdep_add_command(const char *target_name, const char *command)
 {
-    struct target_node *c = list;
-    struct target_node *new_dep;
-    int found = 0;
-    while (c->next != NULL) { 
-        if (c->target == dep)
-            found = 1;
-        c = c->next;
-    }
+    int target;
+    struct deps_list *c;
 
-    c->next = malloc(sizeof(struct target_node));
-    memset(c->next, 0, sizeof(struct target_node));
-    c->next->target = target;
-    c->next->dep = dep;
+    target = __find_target_by_name(target_name);
+    if (target == 0)
+        target = cdep_add_target(target_name);
 
-    c = c->next;
-
-    if (!found)
-    {
-        c->next = malloc(sizeof(struct target_node));
-        memset(c->next, 0, sizeof(struct target_node));
-        c->next->target = dep;
-        c->next->dep = -1;
-    }
+    c = __insert_list_entry(__list_tail());
+    c->target = target;
+    strncpy(c->cmd, command, CMD_LEN);
+    return 0;
 }
 
-void print_list(struct target_node *list)
+int cdep_execute()
 {
-    struct target_node *c = list;
-    while (c->next)
-    {
-        c = c->next;
-        printf("name: %s\n target: %d\n dep: %d\n\n", c->name, c->target, c->dep);
-    } 
-}
-
-void remove_target(struct target_node *list, int target)
-{
-    struct target_node *c = list;
-    struct target_node *next;
-    while (c->next)
-    {
-        next = c->next;
-        if (next->target == target)
-        {
-            c->next = next->next;
-            free(next);
-        }
-        else
-        {
-            if (next->dep == target)
-            {
-                next->dep = -1;
-            }
-            c = c->next;
-        }
-    }
-}
-
-void free_list(struct target_node *list)
-{
-    struct target_node *c = list;
-    struct target_node *next;
-    while (c->next)
-    {
-        next = c->next;
-        c->next = c->next->next;
-        free(next);
-    }
-}
-
-int list_length(struct target_node *list)
-{
-    int i = 0;
-    while (list->next)
-    {
-        i++;
-        list = list->next;
-    }
-    return i;
-}
-
-void print_build_order(struct target_node *list)
-{
-    struct target_node *c = list;
-    struct target_node *i = list;
-    struct target_node *next;
+    struct deps_list *c = &dl;
+    struct deps_list *i = &dl;
+    struct deps_list *next;
     int found;
+    __print_list();
 
     while (c && c->next)
     {
         next = c->next;
-        if (next->dep == -1)
+        if (next->dep == 0)
         {
-            i = list;
+            i = &dl;
             found = 1;
             while (i->next)
             {
                 if (i->next->target == next->target
-                    && i->next->dep != -1)
+                    && i->next->dep != 0)
                 {
                     found=0;
                     break;
@@ -149,9 +109,9 @@ void print_build_order(struct target_node *list)
             }
             if (found)
             {
-                printf("Build: %s (%d)\n", get_target_name(list, next->target), next->target);
-                remove_target(list, next->target);
-                c = list;
+                __print_target_commands(next->target);
+                __remove_target(next->target);
+                c = &dl;
             }
             else
             {
@@ -163,34 +123,133 @@ void print_build_order(struct target_node *list)
             c = next;
         }
     }
-    if (list_length(list))
+    if (__list_length())
     {
         printf("Error: Dependencies not solvable\n");
     }
 }
 
-int main()
+int cdep_cleanup()
 {
-    int len;
-    struct target_node list;
-    struct target_node *c;
-    initialize_list(&list);
+    struct deps_list *c = dl.next, *cn;
+    while (c)
+    {
+        cn = c->next;
+        free(c);
+        c = cn;
+    }
+}
 
-    name_target(&list, "toolchain", 1);
-    name_target(&list, "kernel", 2);
-    name_target(&list, "bootloader", 3);
-    name_target(&list, "userspace", 4);
-
-    define_dep(&list, 4, 3);
-    define_dep(&list, 4, 2);
-    define_dep(&list, 2, 1);
-    define_dep(&list, 3, 1);
-
-//    print_list(&list);
-
-    print_build_order(&list);
-    free_list(&list);
-
+int __find_target_by_name(const char *name)
+{
+    struct deps_list *c = &dl;
+    while (c != NULL)
+    {
+        if (strcmp(c->name, name) == 0)
+            return c->target;
+        c = c->next;
+    }
     return 0;
+}
+
+const char* __find_name_by_target(int target)
+{
+    struct deps_list *c = &dl;
+    while (c != NULL)
+    {
+        if (c->target == target)
+            return c->name;
+        c = c->next;
+    }
+    return 0;
+}
+
+struct deps_list* __insert_list_entry(struct deps_list *here)
+{
+    struct deps_list *c = here->next;
+
+    here->next = malloc(sizeof(struct deps_list));
+    memset(here->next, 0, sizeof(struct deps_list));
+    here->next->next = c;
+}
+
+void __remove_list_entry(struct deps_list *ent)
+{
+    struct deps_list *before = &dl;
+    while (before->next && before->next != ent)
+    {
+        before = before->next;
+    }
+    before->next = ent->next;
+    free(ent);
+}
+
+struct deps_list* __list_tail()
+{
+    struct deps_list *c = &dl;
+    while (c->next != NULL)
+    {
+        c = c->next;
+    }
+    return c;
+}
+
+int __list_length()
+{
+    int i = 0;
+    struct deps_list *c = &dl;
+
+    while (c->next)
+    {
+        i++;
+        c = c->next;
+    }
+    return i;
+}
+
+struct deps_list* __find_target(struct deps_list *start, int target)
+{
+    struct deps_list *c = start;
+    while (c && c->target != target)
+    {
+        c = c->next;
+    }
+    return c;
+}
+
+void __remove_target(int target)
+{
+    struct deps_list *c = &dl;
+
+    while (c->next != NULL)
+    {
+        c = c->next;
+        if (c->dep == target)
+            c->dep = 0;
+        if (c->target == target)
+            __remove_list_entry(c);
+    }
+}
+
+void __print_target_commands(int target)
+{
+    struct deps_list *c = &dl;
+
+    while (c = __find_target(c, target))
+    {
+        if (strlen(c->cmd) > 0)
+            printf("%s\n", c->cmd);
+        c = c->next;
+    }
+}
+
+void __print_list()
+{
+    struct deps_list *c = &dl;
+    while (c->next)
+    {
+        c = c->next;
+        printf("[%s]\ntarget = %d\ndep = %d\ncmd = %s\n\n", __find_name_by_target(c->target), c->target, c->dep, c->cmd);
+    } 
 }
 
