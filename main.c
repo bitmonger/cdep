@@ -53,8 +53,13 @@ int main(int argc, char* argv[])
         printf("Can't load %s\n", fname);
         return 1;
     }
-    cdep_execute();
+    if (cdep_execute())
+    {
+        cdep_cleanup();
+        return 0;
+    }
 
+    cdep_print_script();
     cdep_cleanup();
 
     return 0;

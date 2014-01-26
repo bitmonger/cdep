@@ -8,12 +8,13 @@
 
 int __find_target_by_name(const char *name);
 const char* __find_name_by_target(int target);
-struct deps_list* __insert_list_entry(struct deps_list *here);
+struct deps_list* __allocate_new_entry(struct deps_list *here);
+struct deps_list* __insert_list_entry(struct deps_list *here, struct deps_list *entry);
 struct deps_list* __remove_list_entry(struct deps_list *ent);
 struct deps_list* __find_target(struct deps_list *start, int target);
 void __remove_target(int target);
-void __print_target_commands(int target);
-struct deps_list* __list_tail();
+void __store_target_commands(int target);
+struct deps_list* __list_tail(struct deps_list* list);
 void __print_list();
 int __list_length();
 
@@ -27,10 +28,12 @@ struct deps_list {
 
 int gl_nextId = 1;
 struct deps_list dl;
+struct deps_list cl;
 
 int cdep_init() 
 {
     memset(&dl, 0, sizeof(struct deps_list));
+    memset(&cl, 0, sizeof(struct deps_list));
     return 0;
 }
 
@@ -41,7 +44,7 @@ int cdep_add_target(const char* name)
     if (__find_target_by_name(name) > 0)
         return -1;
 
-    c = __insert_list_entry(__list_tail());
+    c = __allocate_new_entry(__list_tail(&dl));
     c->target = gl_nextId++;
     c->dep = 0;
     strncpy(c->name, name, NAME_LEN);
@@ -61,7 +64,7 @@ int cdep_add_dependency(const char* name, const char *dep_name)
     if (dep == 0)
         dep = cdep_add_target(dep_name);
 
-    c = __insert_list_entry(__list_tail());
+    c = __allocate_new_entry(__list_tail(&dl));
     c->target = target;
     c->dep = dep;
     return 0;
@@ -76,7 +79,7 @@ int cdep_add_command(const char *target_name, const char *command)
     if (target == 0)
         target = cdep_add_target(target_name);
 
-    c = __insert_list_entry(__list_tail());
+    c = __allocate_new_entry(__list_tail(&dl));
     c->target = target;
     strncpy(c->cmd, command, CMD_LEN);
     return 0;
@@ -108,7 +111,7 @@ int cdep_execute()
             }
             if (found)
             {
-                __print_target_commands(next->target);
+                __store_target_commands(next->target);
                 __remove_target(next->target);
                 c = &dl;
             }
@@ -130,9 +133,29 @@ int cdep_execute()
     return 0;
 }
 
+int cdep_print_script()
+{
+    struct deps_list *c = &cl;
+    printf("#!/bin/bash -e\n");
+    while (c->next != NULL)
+    {
+        c = c->next;
+        printf("%s\n", c->cmd);
+    }
+    printf("\n");
+    return 0;
+}
+
 int cdep_cleanup()
 {
     struct deps_list *c = dl.next, *cn;
+    while (c)
+    {
+        cn = c->next;
+        free(c);
+        c = cn;
+    }
+    c = cl.next;
     while (c)
     {
         cn = c->next;
@@ -166,7 +189,7 @@ const char* __find_name_by_target(int target)
     return 0;
 }
 
-struct deps_list* __insert_list_entry(struct deps_list *here)
+struct deps_list* __allocate_new_entry(struct deps_list *here)
 {
     struct deps_list *c = here->next;
 
@@ -174,6 +197,15 @@ struct deps_list* __insert_list_entry(struct deps_list *here)
     memset(here->next, 0, sizeof(struct deps_list));
     here->next->next = c;
     return here->next;
+}
+
+struct deps_list* __insert_list_entry(struct deps_list *here, struct deps_list *entry)
+{
+    struct deps_list *c = here->next;
+
+    here->next = entry;
+    here->next->next = c;
+    return entry;
 }
 
 struct deps_list* __remove_list_entry(struct deps_list *ent)
@@ -188,14 +220,13 @@ struct deps_list* __remove_list_entry(struct deps_list *ent)
     return before;
 }
 
-struct deps_list* __list_tail()
+struct deps_list* __list_tail(struct deps_list *list)
 {
-    struct deps_list *c = &dl;
-    while (c->next != NULL)
+    while (list->next != NULL)
     {
-        c = c->next;
+        list = list->next;
     }
-    return c;
+    return list;
 }
 
 int __list_length()
@@ -237,15 +268,18 @@ void __remove_target(int target)
     }
 }
 
-void __print_target_commands(int target)
+void __store_target_commands(int target)
 {
     struct deps_list *c = &dl;
-    const char *name = __find_name_by_target(target);
+    struct deps_list *n = &dl;
 
     while ((c = __find_target(c, target)))
     {
         if (strlen(c->cmd) > 0)
-            printf("%s, %s\n", name, c->cmd);
+        {
+            n = __allocate_new_entry(__list_tail(&cl));
+            strncpy(n->cmd, c->cmd, CMD_LEN);
+        }
         c = c->next;
     }
 }
