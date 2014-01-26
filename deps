@@ -1,0 +1,13 @@
+[toolchain]
+    build = ./toolchain/build.sh
+[kernel]
+    build = ./kernel/build.sh
+    dep = toolchain
+[bootloader]
+    build = ./bootloader/build.sh
+    dep = toolchain
+[userspace]
+    build = ./userspace/build.sh
+    dep = toolchain
+    dep = kernel
+    dep = bootloader
