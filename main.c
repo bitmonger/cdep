@@ -26,7 +26,6 @@ static int handler(void* user, const char* section, const char* name,
     }
     else
     {
-        printf("Unknown identifier:\n[%s]\n%s = %s\n", section, name, value);
         return 0;
     }
     return 1;
@@ -36,6 +35,7 @@ int main(int argc, char* argv[])
 {
     struct stat st;
     const char* fname;
+    int l;
 
     if (argc < 2)
         fname = "deps.ini";
@@ -49,8 +49,8 @@ int main(int argc, char* argv[])
     }
 
     cdep_init();
-    if (ini_parse(fname, handler, NULL) < 0) {
-        printf("Can't load %s\n", fname);
+    if ((l = ini_parse(fname, handler, NULL))) {
+        printf("%s:%d parse error\n", fname, l);
         return 1;
     }
     if (cdep_execute())
