@@ -1,3 +1,11 @@
+/* cdep -- simple dependency resolver
+
+cdep is released under the New BSD license (see LICENSE.txt). Go to the project
+home page for more info:
+
+https://github.com/bitmonger/cdep
+
+*/
 #ifndef __DEPS_H_INCLUDED__
 #define __DEPS_H_INCLUDED__
 

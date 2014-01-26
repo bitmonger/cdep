@@ -1,4 +1,11 @@
-/* Example: parse a simple configuration file */
+/* cdep -- simple dependency resolver
+
+cdep is released under the New BSD license (see LICENSE.txt). Go to the project
+home page for more info:
+
+https://github.com/bitmonger/cdep
+
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
