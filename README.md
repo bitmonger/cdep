@@ -4,7 +4,8 @@ cdep
 A simple dependency resolver with a .ini file format
 
 There are many dependency resolving tools, but they can be very complicated, and perhaps do more than in necessary.
-This tool is designed to be the simplest way possible to generate a build order for a project.
+This tool is designed to be the simplest way possible to generate a build order for a project.  Use in conjunction
+with something like git submodules to create a simple yet powerful build system.
 
 Example:
 
@@ -26,4 +27,5 @@ Run cdep:
     ./some_other_component/pre_build.sh
     ./some_other_component/build.sh
     ./some_component/build.sh
+    
 
