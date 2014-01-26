@@ -88,7 +88,6 @@ int cdep_execute()
     struct deps_list *i = &dl;
     struct deps_list *next;
     int found;
-    __print_list();
 
     while (c && c->next)
     {
