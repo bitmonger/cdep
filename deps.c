@@ -125,7 +125,9 @@ int cdep_execute()
     if (__list_length())
     {
         printf("Error: Dependencies not solvable\n");
+        return -1;
     }
+    return 0;
 }
 
 int cdep_cleanup()
@@ -137,6 +139,7 @@ int cdep_cleanup()
         free(c);
         c = cn;
     }
+    return 0;
 }
 
 int __find_target_by_name(const char *name)
@@ -170,6 +173,7 @@ struct deps_list* __insert_list_entry(struct deps_list *here)
     here->next = malloc(sizeof(struct deps_list));
     memset(here->next, 0, sizeof(struct deps_list));
     here->next->next = c;
+    return here->next;
 }
 
 void __remove_list_entry(struct deps_list *ent)
@@ -233,11 +237,12 @@ void __remove_target(int target)
 void __print_target_commands(int target)
 {
     struct deps_list *c = &dl;
+    const char *name = __find_name_by_target(target);
 
-    while (c = __find_target(c, target))
+    while ((c = __find_target(c, target)))
     {
         if (strlen(c->cmd) > 0)
-            printf("%s\n", c->cmd);
+            printf("%s, %s\n", name, c->cmd);
         c = c->next;
     }
 }
