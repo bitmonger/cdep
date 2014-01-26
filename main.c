@@ -3,6 +3,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <errno.h>
+#include <unistd.h>
+
 #include "ini.h"
 #include "deps.h"
 
@@ -28,9 +34,23 @@ static int handler(void* user, const char* section, const char* name,
 
 int main(int argc, char* argv[])
 {
+    struct stat st;
+    const char* fname;
+
+    if (argc < 2)
+        fname = "deps.ini";
+    else
+        fname = argv[1];
+
+    if (stat(fname, &st))
+    {
+        perror(fname);
+        return -1;
+    }
+
     cdep_init();
-    if (ini_parse("deps.ini", handler, NULL) < 0) {
-        printf("Can't load 'deps.ini'\n");
+    if (ini_parse(fname, handler, NULL) < 0) {
+        printf("Can't load %s\n", fname);
         return 1;
     }
     cdep_execute();

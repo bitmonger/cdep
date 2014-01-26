@@ -9,7 +9,7 @@
 int __find_target_by_name(const char *name);
 const char* __find_name_by_target(int target);
 struct deps_list* __insert_list_entry(struct deps_list *here);
-void __remove_list_entry(struct deps_list *ent);
+struct deps_list* __remove_list_entry(struct deps_list *ent);
 struct deps_list* __find_target(struct deps_list *start, int target);
 void __remove_target(int target);
 void __print_target_commands(int target);
@@ -176,7 +176,7 @@ struct deps_list* __insert_list_entry(struct deps_list *here)
     return here->next;
 }
 
-void __remove_list_entry(struct deps_list *ent)
+struct deps_list* __remove_list_entry(struct deps_list *ent)
 {
     struct deps_list *before = &dl;
     while (before->next && before->next != ent)
@@ -185,6 +185,7 @@ void __remove_list_entry(struct deps_list *ent)
     }
     before->next = ent->next;
     free(ent);
+    return before;
 }
 
 struct deps_list* __list_tail()
@@ -230,7 +231,9 @@ void __remove_target(int target)
         if (c->dep == target)
             c->dep = 0;
         if (c->target == target)
-            __remove_list_entry(c);
+        {
+            c = __remove_list_entry(c);
+        }
     }
 }
 
