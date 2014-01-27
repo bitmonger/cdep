@@ -13,9 +13,11 @@ https://github.com/bitmonger/cdep
 
 #define NAME_LEN 1024
 #define CMD_LEN 1024
+#define PATH_LEN 1024
 
 int __find_target_by_name(const char *name);
 const char* __find_name_by_target(int target);
+const char* __find_path_by_target(int target);
 struct deps_list* __allocate_new_entry(struct deps_list *here);
 struct deps_list* __insert_list_entry(struct deps_list *here, struct deps_list *entry);
 struct deps_list* __remove_list_entry(struct deps_list *ent);
@@ -35,6 +37,7 @@ struct deps_list {
     int marked;
     char cmd[CMD_LEN];
     char name[NAME_LEN];
+    char path[PATH_LEN];
     struct deps_list *next;
 };
 
@@ -97,6 +100,21 @@ int cdep_add_command(const char *target_name, const char *command)
     return 0;
 }
 
+int cdep_add_path(const char *target_name, const char *path)
+{
+    int target;
+    struct deps_list *c;
+
+    target = __find_target_by_name(target_name);
+    if (target == 0)
+        target = cdep_add_target(target_name);
+
+    c = __allocate_new_entry(__list_tail(&dl));
+    c->target = target;
+    strncpy(c->path, path, PATH_LEN);
+    return 0;
+}
+
 int cdep_execute()
 {
     int i;
@@ -135,7 +153,7 @@ int cdep_print_build()
 
     while (c != NULL)
     {
-        printf("%d \"%s\" \"%s\"\n", c->dep, c->name, c->cmd);
+        printf("%d \"%s\" \"%s\" \"%s\"\n", c->dep, c->name, c->path, c->cmd);
         c = c->next;
     }
     return 0;
@@ -178,7 +196,21 @@ const char* __find_name_by_target(int target)
     while (c != NULL)
     {
         if (c->target == target)
-            return c->name;
+            if (strlen(c->name) > 0)
+                return c->name;
+        c = c->next;
+    }
+    return 0;
+}
+
+const char* __find_path_by_target(int target)
+{
+    struct deps_list *c = &dl;
+    while (c != NULL)
+    {
+        if (c->target == target)
+            if (strlen(c->path) > 0)
+                return c->path;
         c = c->next;
     }
     return 0;
@@ -316,6 +348,7 @@ void __store_target_commands(int group, int target)
             n = __allocate_new_entry(__list_tail(&cl));
             strncpy(n->cmd, c->cmd, CMD_LEN);
             strncpy(n->name, __find_name_by_target(c->target), NAME_LEN);
+            strncpy(n->path, __find_path_by_target(c->target), PATH_LEN);
             n->dep = group;
             n->target = target;
         }

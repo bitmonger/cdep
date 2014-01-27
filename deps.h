@@ -14,6 +14,7 @@ int cdep_init();
 int cdep_add_target(const char* name);
 int cdep_add_dependency(const char* name, const char *dep_name);
 int cdep_add_command(const char *target_name, const char *command);
+int cdep_add_path(const char *target_name, const char *path);
 int cdep_execute();
 int cdep_print_build();
 int cdep_cleanup();

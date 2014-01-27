@@ -32,6 +32,10 @@ static int handler(void* user, const char* section, const char* name,
     {
         cdep_add_dependency(section, value);
     }
+    else if (strcmp(name, "path") == 0)
+    {
+        cdep_add_path(section, value);
+    }
     else
     {
         return 0;
