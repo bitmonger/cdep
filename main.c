@@ -18,6 +18,7 @@ https://github.com/bitmonger/cdep
 
 #include "ini.h"
 #include "deps.h"
+const char* fname;
 
 static int handler(void* user, const char* section, const char* name,
                    const char* value)
@@ -41,7 +42,6 @@ static int handler(void* user, const char* section, const char* name,
 int main(int argc, char* argv[])
 {
     struct stat st;
-    const char* fname;
     int l;
 
     if (argc < 2)
@@ -66,7 +66,7 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    cdep_print_script();
+    cdep_print_build();
     cdep_cleanup();
 
     return 0;

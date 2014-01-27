@@ -21,14 +21,18 @@ struct deps_list* __insert_list_entry(struct deps_list *here, struct deps_list *
 struct deps_list* __remove_list_entry(struct deps_list *ent);
 struct deps_list* __find_target(struct deps_list *start, int target);
 void __remove_target(int target);
-void __store_target_commands(int target);
+void __remove_marked();
+void __mark_target(int target);
+void __store_target_commands(int group, int target);
 struct deps_list* __list_tail(struct deps_list* list);
 void __print_list();
 int __list_length();
+int __test_target_has_no_deps(int target);
 
 struct deps_list {
     int target;
     int dep;
+    int marked;
     char cmd[CMD_LEN];
     char name[NAME_LEN];
     struct deps_list *next;
@@ -95,62 +99,45 @@ int cdep_add_command(const char *target_name, const char *command)
 
 int cdep_execute()
 {
-    struct deps_list *c = &dl;
-    struct deps_list *i = &dl;
-    struct deps_list *next;
-    int found;
+    int i;
+    int len;
+    int group = 1;
+    struct deps_list *c;
 
-    while (c && c->next)
+    while ((len = __list_length()))
     {
-        next = c->next;
-        if (next->dep == 0)
+        for (i = 1; i < gl_nextId; i++)
         {
-            i = &dl;
-            found = 1;
-            while (i->next)
+            c = __find_target(&dl, i);
+            if (c == NULL)
+                continue;
+            
+            if (c->marked == 0 && __test_target_has_no_deps(i))
             {
-                if (i->next->target == next->target
-                    && i->next->dep != 0)
-                {
-                    found=0;
-                    break;
-                }
-                i = i->next;
-            }
-            if (found)
-            {
-                __store_target_commands(next->target);
-                __remove_target(next->target);
-                c = &dl;
-            }
-            else
-            {
-                c = next;
+                __store_target_commands(group, i);
+                __mark_target(i);
             }
         }
-        else
+        group++;
+        __remove_marked();
+        if (len == __list_length())
         {
-            c = next;
+            printf("Error: Dependencies not solvable\n");
+            return -1;
         }
-    }
-    if (__list_length())
-    {
-        printf("Error: Dependencies not solvable\n");
-        return -1;
     }
     return 0;
 }
 
-int cdep_print_script()
+int cdep_print_build()
 {
-    struct deps_list *c = &cl;
-    printf("#!/bin/bash -e\n");
-    while (c->next != NULL)
+    struct deps_list *c = cl.next;
+
+    while (c != NULL)
     {
+        printf("%d \"%s\" \"%s\"\n", c->dep, c->name, c->cmd);
         c = c->next;
-        printf("%s\n", c->cmd);
     }
-    printf("\n");
     return 0;
 }
 
@@ -250,6 +237,18 @@ int __list_length()
     return i;
 }
 
+int __test_target_has_no_deps(int target)
+{
+    struct deps_list *c = &dl;
+    while (c)
+    {
+        if (c->target == target && c->dep != 0)
+            return 0;
+        c = c->next;
+    }
+    return 1;
+}
+
 struct deps_list* __find_target(struct deps_list *start, int target)
 {
     struct deps_list *c = start;
@@ -276,7 +275,36 @@ void __remove_target(int target)
     }
 }
 
-void __store_target_commands(int target)
+void __remove_marked()
+{
+    struct deps_list *c = &dl;
+    int i;
+
+    for (i=1; i < gl_nextId; i++)
+    {
+        if ((c = __find_target(&dl, i)))
+        {
+            if (!c->marked)
+                continue;
+
+            __remove_target(c->target);
+        }
+    }
+}
+
+void __mark_target(int target)
+{
+    struct deps_list *c = &dl;
+
+    while (c->next != NULL)
+    {
+        c = c->next;
+        if (c->target == target)
+            c->marked = 1;
+    }
+}
+
+void __store_target_commands(int group, int target)
 {
     struct deps_list *c = &dl;
     struct deps_list *n = &dl;
@@ -287,14 +315,17 @@ void __store_target_commands(int target)
         {
             n = __allocate_new_entry(__list_tail(&cl));
             strncpy(n->cmd, c->cmd, CMD_LEN);
+            strncpy(n->name, __find_name_by_target(c->target), NAME_LEN);
+            n->dep = group;
+            n->target = target;
         }
         c = c->next;
     }
 }
 
-void __print_list()
+void __print_list(struct deps_list *list)
 {
-    struct deps_list *c = &dl;
+    struct deps_list *c = list;
     while (c->next)
     {
         c = c->next;
